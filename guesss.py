@@ -239,12 +239,6 @@ def send_user_id(message):
     user_id = message.from_user.id
     bot.send_message(message.chat.id, f"ID: `{user_id}`", parse_mode='Markdown')
 
-def run_server():
-    handler = http.server.SimpleHTTPRequestHandler
-    with socketserver.TCPServer(("", 8000), handler) as httpd:
-        print("Serving on port 8000")
-        httpd.serve_forever()
-
 bot.session_data = {}
 
 while True:
