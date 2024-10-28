@@ -8,11 +8,11 @@ import urllib
 import asyncio
 from telebot import TeleBot, types
 
-API_TOKEN = os.getenv('TELEGRAM_BOT_TOKEN')
+API_TOKEN = os.getenv('API_TOKEN')
 
-CHANNEL_USERNAME = os.getenv('TELEGRAM_CHANNEL_USERNAME')
+CHANNEL_USERNAME = os.getenv('CHANNEL_USERNAME')
 
-developer_id = int(os.getenv('DEVELOPER_ID'))  
+developer_id = int(os.getenv('developer_id'))  
 
 bot = telebot.TeleBot(API_TOKEN)
 
