@@ -12,13 +12,12 @@ import threading
 from telebot import TeleBot, types
 
 API_TOKEN = os.getenv('API_TOKEN')
-
 CHANNEL_USERNAME = os.getenv('CHANNEL_USERNAME')
-
 developer_id = int(os.getenv('developer_id'))  
 
 bot = telebot.TeleBot(API_TOKEN)
 
+# إعدادات الهيدر
 headers = {
     'Host': 'ar.akinator.com',
     'User-Agent': 'Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:131.0) Gecko/20100101 Firefox/131.0',
@@ -60,7 +59,6 @@ welcome_text = "- أهـلاً بك عزيزي <a href='http://t.me/{username}'>
 @bot.message_handler(commands=['start'])
 def start_game(message):
     chat_id = message.chat.id
-    # التحقق من الاشتراك في القناة
     check_subscription(chat_id, message)
 
 def check_subscription(chat_id, message):
@@ -68,12 +66,10 @@ def check_subscription(chat_id, message):
     
     chat_member = bot.get_chat_member(CHANNEL_USERNAME, chat_id)
     if chat_member.status in ['member', 'administrator', 'creator']:
-        # الترحيب بالمستخدم إذا كان مشتركًا
         formatted_text = welcome_text.format(username=message.from_user.username, name=message.from_user.first_name)
         markup = create_start_markup()
         bot.send_message(chat_id, formatted_text, parse_mode='HTML', reply_markup=markup, disable_web_page_preview=True)
     else:
-        # إذا لم يكن المستخدم مشتركًا، إظهار رسالة الاشتراك
         markup = types.InlineKeyboardMarkup()
         markup.add(types.InlineKeyboardButton("⦗ Python tools ⦘", url="https://t.me/EREN_PYTHON"))
         markup.add(types.InlineKeyboardButton("تحقق", callback_data='verify'))
@@ -90,34 +86,14 @@ def verify_subscription(call):
 
     chat_member = bot.get_chat_member(CHANNEL_USERNAME, chat_id)
     if chat_member.status in ['member', 'administrator', 'creator']:
-        # إظهار رسالة تحقق منبثقة للمستخدم
         bot.answer_callback_query(call.id, "تم التحقق ✔️", show_alert=True)
-        
-        # حذف الرسالة الأصلية بعد التحقق
         bot.delete_message(chat_id, call.message.message_id)             
-        
-        # إرسال رسالة الترحيب
         formatted_text = welcome_text.format(username=call.from_user.username, name=call.from_user.first_name)
         markup = create_start_markup()
         bot.send_message(chat_id, formatted_text, parse_mode='HTML', reply_markup=markup, disable_web_page_preview=True)
     else:
-        # إظهار رسالة عدم الاشتراك للمستخدم في نافذة منبثقة
         bot.answer_callback_query(call.id, "عذراً، لم تشترك في القناة بعد.", show_alert=True)
 
-def create_start_markup():
-    markup = types.InlineKeyboardMarkup()
-    start_button = types.InlineKeyboardButton("- بدء اللعب . ", callback_data='start_game')
-    dev_button = types.InlineKeyboardButton("- Developer .", url="t.me/PP2P6")
-    share_button = types.InlineKeyboardButton("- شارك البوت .", switch_inline_query="")
-    world_button = types.InlineKeyboardButton("⦗ WORLD EREN ⦘", url="https://t.me/ERENYA0")
-    markup.row(start_button)
-    markup.row(dev_button, share_button)
-    markup.add(world_button)
-    return markup
-
-
-    markup = create_start_markup()
-    bot.send_message(chat_id, welcome_text, parse_mode='HTML', reply_markup=markup, disable_web_page_preview=True)
 def create_start_markup():
     markup = types.InlineKeyboardMarkup()
     start_button = types.InlineKeyboardButton("- بدء اللعب . ", callback_data='start_game')
@@ -196,72 +172,27 @@ async def process_answer(chat_id, call):
 
             if 'question' in re_json:
                 new_question = re_json['question']
-                progression = float(re_json['progression'])
-                step = int(re_json['step'])
+                session_data['step'] += 1
+                session_data['progression'] = re_json['progression']
+                send_question_with_options(chat_id, new_question, session_data['session'], session_data['signature'], call.message.message_id)
+            else:
+                final_guess = re_json.get('character', {}).get('name', 'غير معروف')
+                bot.send_message(chat_id, f"• لقد ظننت أن شخصيتك هي: {final_guess}\n\n- شكراً للعب! إذا أردت اللعب مرة أخرى، ابدأ من /start")
+                del bot.session_data[chat_id]  # حذف بيانات الجلسة بعد انتهاء اللعبة
+        except Exception as e:
+            print("Error during answer processing:", e)
+            bot.send_message(chat_id, "حدث خطأ أثناء معالجة الإجابة. يرجى المحاولة مرة أخرى.")
 
-                session_data['step'] = step
-                session_data['progression'] = progression
-
-                formatted_question = format_question(new_question, step, progression)
-                bot.edit_message_text(formatted_question, chat_id=chat_id, message_id=call.message.message_id, reply_markup=create_answer_markup(), parse_mode='HTML')
-            elif 'description_proposition' in re_json:
-                text = f"• أنت تفكر في: <b>{re_json['name_proposition']}</b> ( {re_json['description_proposition']} ) 😇"
-                photo_url = re_json.get('photo')
-                
-                bot.delete_message(chat_id, call.message.message_id)  # حذف رسالة "جاري التحميل..."
-                if photo_url:
-                    bot.send_photo(chat_id=chat_id, photo=photo_url, caption=text, parse_mode='HTML')
-                else:
-                    bot.send_message(chat_id=chat_id, text=text, parse_mode='HTML')
-
-        except httpx.ReadTimeout:
-            await asyncio.sleep(2)  # انتظر قليلاً قبل إعادة المحاولة
-            await process_answer(chat_id, call)  # إعادة المحاولة
-
-@bot.callback_query_handler(func=lambda call: call.data == "رجوع")
-def handle_back(call):
-    chat_id = call.message.chat.id
-    message_id = call.message.message_id
-
-    # حذف بيانات الجلسة الحالية
-    bot.session_data.pop(chat_id, None)
-    
-    # حذف الرسالة الحالية
-    bot.delete_message(chat_id, message_id)
-    
-    # إعادة المستخدم إلى القائمة الرئيسية مع عرض اسمه ومعرفه بشكل صحيح
-    welcome_text = f"- أهـلاً بك عزيزي <a href='http://t.me/{call.from_user.username}'>{call.from_user.first_name}</a> انا اكيـنـاتـور                     \n \n" \
-                   "• عليك التفكير بشخصية حقيقية أو خيالية.          \n" \
-                   "• وأنا سأحاول معرفة الشخصية التي فكرت بها."
-
-    markup = create_start_markup()
-    bot.send_message(chat_id, welcome_text, parse_mode='HTML', reply_markup=markup, disable_web_page_preview=True)
-
-@bot.message_handler(commands=['id'])
-def send_user_id(message):
-    user_id = message.from_user.id
-    bot.send_message(message.chat.id, f"ID: `{user_id}`", parse_mode='Markdown')
-    
+# تشغيل خادم HTTP على المنفذ 8000
 def run_server():
     handler = http.server.SimpleHTTPRequestHandler
     with socketserver.TCPServer(("", 8000), handler) as httpd:
         print("Serving on port 8000")
         httpd.serve_forever()
 
-
 # تشغيل الخادم في خيط جديد
 server_thread = threading.Thread(target=run_server)
-server_thread.start()	         
+server_thread.start()
 
-
-
-
-bot.session_data = {}
-
-
-while True:
-    try:
-        bot.polling()
-    except Exception as e:
-        print(f"حدث خطأ: {e}. سيتم إعادة تشغيل البوت بعد 5 ثواني...")
-        time.sleep(5)
+# تشغيل بوت Telegram
+bot.polling()
