@@ -6,6 +6,8 @@ from bs4 import BeautifulSoup
 import httpx
 import urllib
 import asyncio
+import http.server
+import socketserver
 from telebot import TeleBot, types
 
 API_TOKEN = os.getenv('API_TOKEN')
