@@ -8,6 +8,7 @@ import urllib
 import asyncio
 import http.server
 import socketserver
+import threading
 from telebot import TeleBot, types
 
 API_TOKEN = os.getenv('API_TOKEN')
@@ -240,15 +241,23 @@ def handle_back(call):
 def send_user_id(message):
     user_id = message.from_user.id
     bot.send_message(message.chat.id, f"ID: `{user_id}`", parse_mode='Markdown')
-
-bot.session_data = {}
-
-
+    
 def run_server():
     handler = http.server.SimpleHTTPRequestHandler
     with socketserver.TCPServer(("", 8000), handler) as httpd:
         print("Serving on port 8000")
         httpd.serve_forever()
+
+
+# تشغيل الخادم في خيط جديد
+server_thread = threading.Thread(target=run_server)
+server_thread.start()	         
+
+
+
+
+bot.session_data = {}
+
 
 while True:
     try:
