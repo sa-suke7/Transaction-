@@ -241,6 +241,13 @@ def send_user_id(message):
 
 bot.session_data = {}
 
+
+def run_server():
+    handler = http.server.SimpleHTTPRequestHandler
+    with socketserver.TCPServer(("", 8000), handler) as httpd:
+        print("Serving on port 8000")
+        httpd.serve_forever()
+
 while True:
     try:
         bot.polling()
