@@ -1,1 +1,1 @@
-web: python guesss.py
+worker: python save.py
