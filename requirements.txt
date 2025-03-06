@@ -1,4 +1,2 @@
-telebot
-beautifulsoup4
-httpx[http2]
-bs4
+telethon
+python-dotenv
